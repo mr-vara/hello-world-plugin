@@ -15,15 +15,10 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y zip
 
       - name: Prepare plugin zip
-        # adjust folder name if your plugin folder is different
         run: |
-          PLUGIN_DIR="hello-world-plugin"
-          # create a zip with tag in name (use release tag)
           TAG="${{ github.ref_name }}"
-          ZIP_NAME="${PLUGIN_DIR}-${TAG:-latest}.zip"
-          # Ensure we don't accidentally zip .git
-          zip -r "$ZIP_NAME" "$PLUGIN_DIR" -x "*.git*"
-        shell: bash
+          ZIP_NAME="hello-world-plugin-${TAG:-latest}.zip"
+          zip -r "$ZIP_NAME" . -x "*.git*" ".github/*"
 
       - name: Show zip contents
         run: ls -lh *.zip
