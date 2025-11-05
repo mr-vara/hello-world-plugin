@@ -1,0 +1,59 @@
+name: Build ZIP and upload to Cloudflare R2 on release
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  build-and-upload:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up zip (if needed)
+        run: sudo apt-get update && sudo apt-get install -y zip
+
+      - name: Prepare plugin zip
+        # adjust folder name if your plugin folder is different
+        run: |
+          PLUGIN_DIR="hello-world-plugin"
+          # create a zip with tag in name (use release tag)
+          TAG="${{ github.ref_name }}"
+          ZIP_NAME="${PLUGIN_DIR}-${TAG:-latest}.zip"
+          # Ensure we don't accidentally zip .git
+          zip -r "$ZIP_NAME" "$PLUGIN_DIR" -x "*.git*"
+        shell: bash
+
+      - name: Show zip contents
+        run: ls -lh *.zip
+
+      # - name: Upload zip to Cloudflare R2
+      #   # using the r2-upload-action (S3-compatible) - recommended
+      #   uses: ryand56/r2-upload-action@latest
+      #   with:
+      #     r2-account-id: ${{ secrets.R2_ACCOUNT_ID }}
+      #     r2-access-key-id: ${{ secrets.R2_ACCESS_KEY_ID }}
+      #     r2-secret-access-key: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      #     r2-bucket: ${{ secrets.R2_BUCKET }}
+      #     # source-dir can point to a file or directory; if you want to upload the single zip:
+      #     source-dir: .
+      #     destination-dir: releases/${{ github.ref_name }}
+      #     # optionally only upload zip files
+      #     include: '*.zip'
+
+      # - name: Install AWS CLI
+      #   run: |
+      #     curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+      #     unzip awscliv2.zip
+      #     sudo ./aws/install
+
+      - name: Upload with aws cli
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+        run: |
+          aws --version
+          aws s3 cp "hello-world-plugin-${{ github.ref_name }}.zip" "s3://${R2_BUCKET_NAME}/releases/${{ github.ref_name }}/" --endpoint-url "https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
